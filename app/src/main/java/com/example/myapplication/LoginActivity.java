@@ -17,6 +17,7 @@ public class LoginActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        AppPrefs.applySavedNightMode(this); // 先应用上次保存的夜间/日间模式
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
 

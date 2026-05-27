@@ -1,36 +1,46 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="#F5F5F5">
+    android:background="@color/surface">
 
     <androidx.appcompat.widget.Toolbar
         android:id="@+id/toolbar"
         android:layout_width="match_parent"
         android:layout_height="?attr/actionBarSize"
-        android:background="#43A047"
-        android:titleTextColor="#FFFFFF"/>
+        android:background="@color/brand_green"
+        android:titleTextColor="@color/text_primary" />
+
+    <!-- 夜间模式开关（主界面入口） -->
+    <androidx.appcompat.widget.SwitchCompat
+        android:id="@+id/switch_night"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="夜间模式"
+        android:textColor="@color/text_primary"
+        android:layout_margin="16dp" />
 
     <ListView
         android:id="@+id/lv_notes"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:divider="#DDDDDD"
+        android:divider="@color/divider"
         android:dividerHeight="1dp"
         android:padding="8dp"
-        android:clipToPadding="false"/>
+        android:clipToPadding="false"
+        android:background="@color/surface" />
 
     <Button
         android:id="@+id/btn_add"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="+ 新建笔记"
-        android:backgroundTint="#43A047"
-        android:textColor="#FFFFFF"
+        android:backgroundTint="@color/brand_green"
+        android:textColor="@color/text_primary"
         android:textSize="16sp"
         android:padding="12dp"
-        android:layout_margin="16dp"/>
-
+        android:layout_margin="16dp" />
 </LinearLayout>

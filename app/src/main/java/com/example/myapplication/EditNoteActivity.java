@@ -25,6 +25,7 @@ public class EditNoteActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        AppPrefs.applySavedNightMode(this);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_edit_note);
 

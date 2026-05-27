@@ -16,6 +16,7 @@ public class RegisterActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        AppPrefs.applySavedNightMode(this);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_register);
 

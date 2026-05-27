@@ -3,14 +3,13 @@ package com.example.myapplication;
 import android.content.Intent;
 import android.database.Cursor;
 import android.os.Bundle;
-import android.view.Menu;
-import android.view.MenuItem;
 import android.widget.ListView;
 import android.widget.SimpleCursorAdapter;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.SwitchCompat;
 import androidx.appcompat.widget.Toolbar;
 
 import java.text.SimpleDateFormat;
@@ -28,6 +27,9 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        // 关键：在 super.onCreate 之前应用保存的夜间模式
+        AppPrefs.applySavedNightMode(this);
+
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
@@ -48,7 +50,25 @@ public class MainActivity extends AppCompatActivity {
             getSupportActionBar().setTitle(username + "的笔记");
         }
 
+        // 夜间模式开关
+        SwitchCompat switchNight = findViewById(R.id.switch_night);
+        switchNight.setChecked(AppPrefs.isNightMode(this));
+        switchNight.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            // 保存偏好
+            AppPrefs.setNightMode(this, isChecked);
+
+            // 立即切换模式
+            androidx.appcompat.app.AppCompatDelegate.setDefaultNightMode(
+                    isChecked ? androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_YES
+                            : androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_NO
+            );
+
+            // 重新创建 Activity 让 UI 生效
+            recreate();
+        });
+
         lvNotes = findViewById(R.id.lv_notes);
+
         findViewById(R.id.btn_add).setOnClickListener(v -> {
             Intent intent = new Intent(MainActivity.this, EditNoteActivity.class);
             intent.putExtra("user_id", userId);
@@ -69,28 +89,10 @@ public class MainActivity extends AppCompatActivity {
         loadNotes();
     }
 
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        // 主界面右上角菜单：回收站入口
-        getMenuInflater().inflate(R.menu.menu_main, menu);
-        return true;
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        if (item.getItemId() == R.id.action_trash) {
-            Intent intent = new Intent(MainActivity.this, TrashActivity.class);
-            intent.putExtra("user_id", userId);
-            startActivity(intent);
-            return true;
-        }
-        return super.onOptionsItemSelected(item);
-    }
-
     private void loadNotes() {
         Cursor cursor = dbHelper.getAllNotes(userId);
 
-        // 显示 title + update_time（格式化成“最后修改：...”）
+        // 这里假设你用 update_time 显示“最后修改：...”
         String[] from = {DatabaseHelper.COL_NOTE_TITLE, DatabaseHelper.COL_NOTE_UPDATE_TIME};
         int[] to = {R.id.tv_title, R.id.tv_time};
         adapter = new SimpleCursorAdapter(this, R.layout.item_note, cursor, from, to, 0);
@@ -99,17 +101,13 @@ public class MainActivity extends AppCompatActivity {
             int updateTimeIndex = c.getColumnIndex(DatabaseHelper.COL_NOTE_UPDATE_TIME);
             if (columnIndex == updateTimeIndex) {
                 long millis = c.getLong(columnIndex);
-                ((TextView) view).setText("最后修改：" + formatTime(millis));
+                ((TextView) view).setText("最后修改：" + sdf.format(new Date(millis)));
                 return true;
             }
             return false;
         });
 
         lvNotes.setAdapter(adapter);
-    }
-
-    private String formatTime(long millis) {
-        return sdf.format(new Date(millis));
     }
 
     @Override
