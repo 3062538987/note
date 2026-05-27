@@ -6,10 +6,16 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.EditText;
 import android.widget.Toast;
+
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 
+/**
+ * 编辑/新建笔记页面
+ * - 保存：新增/更新
+ * - 删除：改为软删除（进入回收站）
+ */
 public class EditNoteActivity extends AppCompatActivity {
     private EditText etTitle, etContent;
     private DatabaseHelper dbHelper;
@@ -37,10 +43,10 @@ public class EditNoteActivity extends AppCompatActivity {
 
         if ("edit".equals(mode)) {
             noteId = getIntent().getIntExtra("note_id", -1);
-            getSupportActionBar().setTitle("编辑笔记");
+            if (getSupportActionBar() != null) getSupportActionBar().setTitle("编辑笔记");
             loadNote();
         } else {
-            getSupportActionBar().setTitle("新建笔记");
+            if (getSupportActionBar() != null) getSupportActionBar().setTitle("新建笔记");
         }
     }
 
@@ -68,7 +74,7 @@ public class EditNoteActivity extends AppCompatActivity {
             return true;
         } else if (item.getItemId() == R.id.action_delete) {
             if ("edit".equals(mode)) {
-                confirmDelete();
+                confirmSoftDelete();
             }
             return true;
         }
@@ -78,10 +84,12 @@ public class EditNoteActivity extends AppCompatActivity {
     private void saveNote() {
         String title = etTitle.getText().toString().trim();
         String content = etContent.getText().toString().trim();
+
         if (title.isEmpty()) {
             Toast.makeText(this, "标题不能为空", Toast.LENGTH_SHORT).show();
             return;
         }
+
         boolean success;
         if ("add".equals(mode)) {
             long id = dbHelper.addNote(userId, title, content);
@@ -89,21 +97,22 @@ public class EditNoteActivity extends AppCompatActivity {
         } else {
             success = dbHelper.updateNote(noteId, title, content);
         }
+
         Toast.makeText(this, success ? "保存成功" : "保存失败", Toast.LENGTH_SHORT).show();
         if (success) finish();
     }
 
-    private void confirmDelete() {
+    /**
+     * 删除确认弹窗（软删除）
+     */
+    private void confirmSoftDelete() {
         new AlertDialog.Builder(this)
                 .setTitle("删除笔记")
-                .setMessage("确定要删除这条笔记吗？")
+                .setMessage("确定要删除这条笔记吗？（将移入回收站）")
                 .setPositiveButton("删除", (dialog, which) -> {
-                    if (dbHelper.deleteNote(noteId)) {
-                        Toast.makeText(this, "已删除", Toast.LENGTH_SHORT).show();
-                        finish();
-                    } else {
-                        Toast.makeText(this, "删除失败", Toast.LENGTH_SHORT).show();
-                    }
+                    boolean ok = dbHelper.softDeleteNote(noteId);
+                    Toast.makeText(this, ok ? "已移入回收站" : "删除失败", Toast.LENGTH_SHORT).show();
+                    if (ok) finish();
                 })
                 .setNegativeButton("取消", null)
                 .show();

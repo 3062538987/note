@@ -19,5 +19,6 @@
         <activity android:name=".RegisterActivity" />
         <activity android:name=".MainActivity" />
         <activity android:name=".EditNoteActivity" />
+        <activity android:name=".TrashActivity" />
     </application>
 </manifest>

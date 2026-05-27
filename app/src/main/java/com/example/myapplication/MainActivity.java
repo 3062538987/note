@@ -3,7 +3,8 @@ package com.example.myapplication;
 import android.content.Intent;
 import android.database.Cursor;
 import android.os.Bundle;
-import android.widget.Button;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.widget.ListView;
 import android.widget.SimpleCursorAdapter;
 import android.widget.TextView;
@@ -23,7 +24,6 @@ public class MainActivity extends AppCompatActivity {
     private int userId;
     private String username;
 
-    // 时间格式化代码（yyyy-MM-dd HH:mm）
     private final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault());
 
     @Override
@@ -49,11 +49,7 @@ public class MainActivity extends AppCompatActivity {
         }
 
         lvNotes = findViewById(R.id.lv_notes);
-        Button btnAdd = findViewById(R.id.btn_add);
-
-        loadNotes();
-
-        btnAdd.setOnClickListener(v -> {
+        findViewById(R.id.btn_add).setOnClickListener(v -> {
             Intent intent = new Intent(MainActivity.this, EditNoteActivity.class);
             intent.putExtra("user_id", userId);
             intent.putExtra("mode", "add");
@@ -69,18 +65,36 @@ public class MainActivity extends AppCompatActivity {
             intent.putExtra("mode", "edit");
             startActivity(intent);
         });
+
+        loadNotes();
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        // 主界面右上角菜单：回收站入口
+        getMenuInflater().inflate(R.menu.menu_main, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        if (item.getItemId() == R.id.action_trash) {
+            Intent intent = new Intent(MainActivity.this, TrashActivity.class);
+            intent.putExtra("user_id", userId);
+            startActivity(intent);
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
     }
 
     private void loadNotes() {
         Cursor cursor = dbHelper.getAllNotes(userId);
 
-        // 用 update_time 绑定到 tv_time（然后通过 ViewBinder 格式化成“最后修改：...”）
+        // 显示 title + update_time（格式化成“最后修改：...”）
         String[] from = {DatabaseHelper.COL_NOTE_TITLE, DatabaseHelper.COL_NOTE_UPDATE_TIME};
         int[] to = {R.id.tv_title, R.id.tv_time};
-
         adapter = new SimpleCursorAdapter(this, R.layout.item_note, cursor, from, to, 0);
 
-        // 列表适配器中显示时间的代码：把毫秒转成 yyyy-MM-dd HH:mm
         adapter.setViewBinder((view, c, columnIndex) -> {
             int updateTimeIndex = c.getColumnIndex(DatabaseHelper.COL_NOTE_UPDATE_TIME);
             if (columnIndex == updateTimeIndex) {
