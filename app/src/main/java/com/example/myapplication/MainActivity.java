@@ -6,9 +6,15 @@ import android.os.Bundle;
 import android.widget.Button;
 import android.widget.ListView;
 import android.widget.SimpleCursorAdapter;
+import android.widget.TextView;
 import android.widget.Toast;
+
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity {
     private DatabaseHelper dbHelper;
@@ -16,6 +22,9 @@ public class MainActivity extends AppCompatActivity {
     private SimpleCursorAdapter adapter;
     private int userId;
     private String username;
+
+    // 时间格式化代码（yyyy-MM-dd HH:mm）
+    private final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault());
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -64,10 +73,29 @@ public class MainActivity extends AppCompatActivity {
 
     private void loadNotes() {
         Cursor cursor = dbHelper.getAllNotes(userId);
-        String[] from = {DatabaseHelper.COL_NOTE_TITLE, DatabaseHelper.COL_NOTE_CREATE_TIME};
+
+        // 用 update_time 绑定到 tv_time（然后通过 ViewBinder 格式化成“最后修改：...”）
+        String[] from = {DatabaseHelper.COL_NOTE_TITLE, DatabaseHelper.COL_NOTE_UPDATE_TIME};
         int[] to = {R.id.tv_title, R.id.tv_time};
+
         adapter = new SimpleCursorAdapter(this, R.layout.item_note, cursor, from, to, 0);
+
+        // 列表适配器中显示时间的代码：把毫秒转成 yyyy-MM-dd HH:mm
+        adapter.setViewBinder((view, c, columnIndex) -> {
+            int updateTimeIndex = c.getColumnIndex(DatabaseHelper.COL_NOTE_UPDATE_TIME);
+            if (columnIndex == updateTimeIndex) {
+                long millis = c.getLong(columnIndex);
+                ((TextView) view).setText("最后修改：" + formatTime(millis));
+                return true;
+            }
+            return false;
+        });
+
         lvNotes.setAdapter(adapter);
+    }
+
+    private String formatTime(long millis) {
+        return sdf.format(new Date(millis));
     }
 
     @Override
