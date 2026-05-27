@@ -3,12 +3,15 @@ package com.example.myapplication;
 import android.content.Intent;
 import android.database.Cursor;
 import android.os.Bundle;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.widget.ListView;
 import android.widget.SimpleCursorAdapter;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.app.AppCompatDelegate;
 import androidx.appcompat.widget.SwitchCompat;
 import androidx.appcompat.widget.Toolbar;
 
@@ -23,6 +26,7 @@ public class MainActivity extends AppCompatActivity {
     private int userId;
     private String username;
 
+    // 时间格式：yyyy-MM-dd HH:mm
     private final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault());
 
     @Override
@@ -44,6 +48,7 @@ public class MainActivity extends AppCompatActivity {
 
         dbHelper = new DatabaseHelper(this);
 
+        // Toolbar 作为 ActionBar（用于显示右上角“三个点”菜单）
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
         if (getSupportActionBar() != null) {
@@ -58,17 +63,18 @@ public class MainActivity extends AppCompatActivity {
             AppPrefs.setNightMode(this, isChecked);
 
             // 立即切换模式
-            androidx.appcompat.app.AppCompatDelegate.setDefaultNightMode(
-                    isChecked ? androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_YES
-                            : androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_NO
+            AppCompatDelegate.setDefaultNightMode(
+                    isChecked ? AppCompatDelegate.MODE_NIGHT_YES
+                            : AppCompatDelegate.MODE_NIGHT_NO
             );
 
-            // 重新创建 Activity 让 UI 生效
+            // 重新创建 Activity 让 UI 立刻刷新
             recreate();
         });
 
         lvNotes = findViewById(R.id.lv_notes);
 
+        // 新建笔记
         findViewById(R.id.btn_add).setOnClickListener(v -> {
             Intent intent = new Intent(MainActivity.this, EditNoteActivity.class);
             intent.putExtra("user_id", userId);
@@ -76,6 +82,7 @@ public class MainActivity extends AppCompatActivity {
             startActivity(intent);
         });
 
+        // 点击某条笔记进入编辑
         lvNotes.setOnItemClickListener((parent, view, position, id) -> {
             Cursor cursor = (Cursor) parent.getItemAtPosition(position);
             int noteId = cursor.getInt(cursor.getColumnIndexOrThrow("_id"));
@@ -89,14 +96,50 @@ public class MainActivity extends AppCompatActivity {
         loadNotes();
     }
 
+    /**
+     * 加载右上角菜单（回收站 / 退出登录）
+     * 需要 res/menu/menu_main.xml
+     */
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.menu_main, menu);
+        return true;
+    }
+
+    /**
+     * 菜单点击事件
+     */
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        int id = item.getItemId();
+
+        if (id == R.id.action_trash) {
+            // 打开回收站
+            Intent intent = new Intent(MainActivity.this, TrashActivity.class);
+            intent.putExtra("user_id", userId);
+            startActivity(intent);
+            return true;
+
+        } else if (id == R.id.action_exit) {
+            // 退出登录：回到 LoginActivity，并清空返回栈（按返回不会回到 MainActivity）
+            Intent intent = new Intent(MainActivity.this, LoginActivity.class);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+            startActivity(intent);
+            return true;
+        }
+
+        return super.onOptionsItemSelected(item);
+    }
+
     private void loadNotes() {
         Cursor cursor = dbHelper.getAllNotes(userId);
 
-        // 这里假设你用 update_time 显示“最后修改：...”
+        // 显示标题 + 最后修改时间(update_time)
         String[] from = {DatabaseHelper.COL_NOTE_TITLE, DatabaseHelper.COL_NOTE_UPDATE_TIME};
         int[] to = {R.id.tv_title, R.id.tv_time};
         adapter = new SimpleCursorAdapter(this, R.layout.item_note, cursor, from, to, 0);
 
+        // 把毫秒时间戳格式化显示
         adapter.setViewBinder((view, c, columnIndex) -> {
             int updateTimeIndex = c.getColumnIndex(DatabaseHelper.COL_NOTE_UPDATE_TIME);
             if (columnIndex == updateTimeIndex) {

@@ -6,4 +6,10 @@
         android:id="@+id/action_trash"
         android:title="回收站"
         app:showAsAction="never" />
+
+    <!-- 退出登录 -->
+    <item
+        android:id="@+id/action_exit"
+        android:title="退出登录"
+        app:showAsAction="never" />
 </menu>

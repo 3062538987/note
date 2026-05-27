@@ -3,22 +3,22 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="#F5F5F5">
+    android:background="@color/surface">
 
     <androidx.appcompat.widget.Toolbar
         android:id="@+id/toolbar_trash"
         android:layout_width="match_parent"
         android:layout_height="?attr/actionBarSize"
-        android:background="#607D8B"
-        android:titleTextColor="#FFFFFF" />
+        android:background="@color/brand_green"
+        android:titleTextColor="@color/white" />
 
     <ListView
         android:id="@+id/lv_trash"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:divider="#DDDDDD"
+        android:divider="@color/divider"
         android:dividerHeight="1dp"
         android:padding="8dp"
-        android:clipToPadding="false" />
-
+        android:clipToPadding="false"
+        android:background="@color/surface" />
 </LinearLayout>
