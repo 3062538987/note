@@ -8,7 +8,7 @@ import android.database.sqlite.SQLiteOpenHelper;
 
 public class DatabaseHelper extends SQLiteOpenHelper {
     private static final String DB_NAME = "notepad.db";
-    private static final int DB_VERSION = 1;
+    private static final int DB_VERSION = 4;
 
     // 用户表
     public static final String TABLE_USERS = "users";
