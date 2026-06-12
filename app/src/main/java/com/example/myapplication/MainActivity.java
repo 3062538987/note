@@ -48,7 +48,7 @@ public class MainActivity extends AppCompatActivity {
 
         dbHelper = new DatabaseHelper(this);
 
-        // Toolbar 作为 ActionBar（用于显示右上角“三个点”菜单）
+        // Toolbar 作为 ActionBar
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
         if (getSupportActionBar() != null) {

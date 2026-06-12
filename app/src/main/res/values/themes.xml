@@ -1,7 +1,7 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- 日间主题（保持你的 Theme.MyApplication 名字不变，Manifest 已在用它） -->
+
     <style name="Theme.MyApplication" parent="Theme.AppCompat.Light.NoActionBar">
-        <!-- 主题主色（你原有的保留） -->
+        <!-- 主题主色 -->
         <item name="colorPrimary">@color/brand_green</item>
         <item name="colorPrimaryVariant">@color/brand_green</item>
         <item name="colorOnPrimary">@color/white</item>
@@ -13,7 +13,7 @@
         <!-- 状态栏 -->
         <item name="android:statusBarColor" tools:targetApi="l">?attr/colorPrimaryVariant</item>
 
-        <!-- 可选：让默认窗口背景跟随 background -->
+
         <item name="android:windowBackground">@color/background</item>
     </style>
 </resources>
