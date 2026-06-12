@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 编辑笔记时使用的分类数组（不含“全部”） -->
+    <string-array name="note_categories">
+        <item>工作</item>
+        <item>个人</item>
+        <item>学习</item>
+        <item>生活</item>
+        <item>其他</item>
+    </string-array>
+
+    <!-- 主界面筛选时使用的分类数组（含“全部”） -->
+    <string-array name="note_categories_all">
+        <item>全部</item>
+        <item>工作</item>
+        <item>个人</item>
+        <item>学习</item>
+        <item>生活</item>
+        <item>其他</item>
+    </string-array>
+</resources>

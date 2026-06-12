@@ -9,16 +9,15 @@ import android.database.sqlite.SQLiteOpenHelper;
 /**
  * 数据库帮助类：
  * - notes 表支持时间戳 create_time/update_time（毫秒）
- * - 新增回收站：is_deleted/delete_time（软删除）
+ * - 支持回收站：is_deleted/delete_time（软删除）
+ * - 支持搜索功能（关键词搜索）
+ * - 支持笔记分类（category）
  */
 public class DatabaseHelper extends SQLiteOpenHelper {
     private static final String DB_NAME = "notepad.db";
 
-    /**
-     * 注意：版本号只能递增不能降低。
-     * 你前面时间戳方案我给的是 5，这里再加回收站字段 -> 6
-     */
-    private static final int DB_VERSION = 6;
+    // 版本号：7（包含分类字段）
+    private static final int DB_VERSION = 7;
 
     // 用户表
     public static final String TABLE_USERS = "users";
@@ -41,6 +40,9 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     public static final String COL_NOTE_IS_DELETED = "is_deleted";   // 0未删除，1已删除
     public static final String COL_NOTE_DELETE_TIME = "delete_time"; // 删除时间毫秒（可为null）
 
+    // 分类字段
+    public static final String COL_NOTE_CATEGORY = "category";
+
     public DatabaseHelper(Context context) {
         super(context, DB_NAME, null, DB_VERSION);
     }
@@ -53,7 +55,6 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 COL_PASSWORD + " TEXT)";
         db.execSQL(createUsers);
 
-        // notes：包含时间戳 + 回收站字段
         String createNotes = "CREATE TABLE " + TABLE_NOTES + " (" +
                 COL_NOTE_ID + " INTEGER PRIMARY KEY AUTOINCREMENT, " +
                 COL_NOTE_TITLE + " TEXT, " +
@@ -62,22 +63,14 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 COL_NOTE_CREATE_TIME + " INTEGER, " +
                 COL_NOTE_UPDATE_TIME + " INTEGER, " +
                 COL_NOTE_IS_DELETED + " INTEGER DEFAULT 0, " +
-                COL_NOTE_DELETE_TIME + " INTEGER)";
+                COL_NOTE_DELETE_TIME + " INTEGER, " +
+                COL_NOTE_CATEGORY + " TEXT DEFAULT '其他')";
         db.execSQL(createNotes);
     }
 
-    /**
-     * 数据库升级：
-     * - 旧版本可能没有 create_time/update_time（v5引入）
-     * - 本次 v6 引入 is_deleted/delete_time
-     *
-     * 采用 ALTER TABLE 增字段的方式，尽量不丢数据。
-     */
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
         long now = System.currentTimeMillis();
-
-        // 如果从更老版本升级到 5+，补时间戳字段
         if (oldVersion < 5) {
             try {
                 db.execSQL("ALTER TABLE " + TABLE_NOTES + " ADD COLUMN " + COL_NOTE_CREATE_TIME + " INTEGER");
@@ -85,7 +78,6 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             try {
                 db.execSQL("ALTER TABLE " + TABLE_NOTES + " ADD COLUMN " + COL_NOTE_UPDATE_TIME + " INTEGER");
             } catch (Exception ignore) { }
-
             try {
                 db.execSQL("UPDATE " + TABLE_NOTES +
                         " SET " + COL_NOTE_CREATE_TIME + " = COALESCE(" + COL_NOTE_CREATE_TIME + ", " + now + ")");
@@ -95,8 +87,6 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                         " SET " + COL_NOTE_UPDATE_TIME + " = COALESCE(" + COL_NOTE_UPDATE_TIME + ", " + now + ")");
             } catch (Exception ignore) { }
         }
-
-        // 升级到 6：补回收站字段
         if (oldVersion < 6) {
             try {
                 db.execSQL("ALTER TABLE " + TABLE_NOTES + " ADD COLUMN " + COL_NOTE_IS_DELETED + " INTEGER DEFAULT 0");
@@ -104,16 +94,19 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             try {
                 db.execSQL("ALTER TABLE " + TABLE_NOTES + " ADD COLUMN " + COL_NOTE_DELETE_TIME + " INTEGER");
             } catch (Exception ignore) { }
-
-            // 把旧数据默认设为未删除
             try {
                 db.execSQL("UPDATE " + TABLE_NOTES +
                         " SET " + COL_NOTE_IS_DELETED + " = COALESCE(" + COL_NOTE_IS_DELETED + ", 0)");
             } catch (Exception ignore) { }
         }
+        if (oldVersion < 7) {
+            try {
+                db.execSQL("ALTER TABLE " + TABLE_NOTES + " ADD COLUMN " + COL_NOTE_CATEGORY + " TEXT DEFAULT '其他'");
+            } catch (Exception ignore) { }
+        }
     }
 
-    // 注册
+    // 注册、登录等方法保持不变
     public boolean register(String username, String password) {
         if (username == null || username.trim().isEmpty() || password == null || password.length() < 6) return false;
         SQLiteDatabase db = getWritableDatabase();
@@ -125,7 +118,6 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         return result != -1;
     }
 
-    // 登录验证
     public boolean login(String username, String password) {
         SQLiteDatabase db = getReadableDatabase();
         Cursor cursor = db.query(TABLE_USERS, null,
@@ -137,7 +129,6 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         return isValid;
     }
 
-    // 获取用户ID
     public int getUserId(String username) {
         SQLiteDatabase db = getReadableDatabase();
         Cursor cursor = db.query(TABLE_USERS, new String[]{COL_USER_ID},
@@ -149,10 +140,6 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         return id;
     }
 
-    /**
-     * 查询未删除的记事（主列表）
-     * 要求：AND is_deleted = 0，按 update_time 倒序
-     */
     public Cursor getAllNotes(int userId) {
         SQLiteDatabase db = getReadableDatabase();
         String[] columns = {
@@ -160,7 +147,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 COL_NOTE_TITLE,
                 COL_NOTE_CONTENT,
                 COL_NOTE_CREATE_TIME,
-                COL_NOTE_UPDATE_TIME
+                COL_NOTE_UPDATE_TIME,
+                COL_NOTE_CATEGORY
         };
         return db.query(TABLE_NOTES, columns,
                 COL_NOTE_USER_ID + "=? AND " + COL_NOTE_IS_DELETED + "=0",
@@ -169,10 +157,22 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 COL_NOTE_UPDATE_TIME + " DESC");
     }
 
-    /**
-     * 查询回收站记事（只显示已删除的）
-     * 按 delete_time 倒序
-     */
+    public Cursor getNotesByCategory(int userId, String category) {
+        SQLiteDatabase db = getReadableDatabase();
+        String[] columns = {
+                COL_NOTE_ID + " as _id",
+                COL_NOTE_TITLE,
+                COL_NOTE_CONTENT,
+                COL_NOTE_CREATE_TIME,
+                COL_NOTE_UPDATE_TIME,
+                COL_NOTE_CATEGORY
+        };
+        String selection = COL_NOTE_USER_ID + "=? AND " + COL_NOTE_IS_DELETED + "=0 AND " + COL_NOTE_CATEGORY + "=?";
+        String[] selectionArgs = new String[]{String.valueOf(userId), category};
+        return db.query(TABLE_NOTES, columns, selection, selectionArgs,
+                null, null, COL_NOTE_UPDATE_TIME + " DESC");
+    }
+
     public Cursor getDeletedNotes(int userId) {
         SQLiteDatabase db = getReadableDatabase();
         String[] columns = {
@@ -187,7 +187,6 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 COL_NOTE_DELETE_TIME + " DESC");
     }
 
-    // 根据ID获取单条记事（编辑页用：也可以拿到是否删除）
     public Cursor getNoteById(int noteId) {
         SQLiteDatabase db = getReadableDatabase();
         String[] columns = {
@@ -197,7 +196,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 COL_NOTE_CREATE_TIME,
                 COL_NOTE_UPDATE_TIME,
                 COL_NOTE_IS_DELETED,
-                COL_NOTE_DELETE_TIME
+                COL_NOTE_DELETE_TIME,
+                COL_NOTE_CATEGORY
         };
         return db.query(TABLE_NOTES, columns,
                 COL_NOTE_ID + "=?",
@@ -205,9 +205,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 null, null, null);
     }
 
-
-    // 添加记事：自动写 create_time 和 update_time，默认未删除
-    public long addNote(int userId, String title, String content) {
+    public long addNote(int userId, String title, String content, String category) {
         SQLiteDatabase db = getWritableDatabase();
         long now = System.currentTimeMillis();
         ContentValues values = new ContentValues();
@@ -218,21 +216,25 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         values.put(COL_NOTE_UPDATE_TIME, now);
         values.put(COL_NOTE_IS_DELETED, 0);
         values.putNull(COL_NOTE_DELETE_TIME);
-
+        if (category == null || category.trim().isEmpty()) {
+            category = "其他";
+        }
+        values.put(COL_NOTE_CATEGORY, category);
         long id = db.insert(TABLE_NOTES, null, values);
         db.close();
         return id;
     }
 
-    // 更新记事：自动更新 update_time（仅对未删除的笔记更新更合理）
-    public boolean updateNote(int noteId, String title, String content) {
+    public boolean updateNote(int noteId, String title, String content, String category) {
         SQLiteDatabase db = getWritableDatabase();
         long now = System.currentTimeMillis();
         ContentValues values = new ContentValues();
         values.put(COL_NOTE_TITLE, title);
         values.put(COL_NOTE_CONTENT, content);
         values.put(COL_NOTE_UPDATE_TIME, now);
-
+        if (category != null && !category.trim().isEmpty()) {
+            values.put(COL_NOTE_CATEGORY, category);
+        }
         int rows = db.update(TABLE_NOTES, values,
                 COL_NOTE_ID + "=? AND " + COL_NOTE_IS_DELETED + "=0",
                 new String[]{String.valueOf(noteId)});
@@ -240,12 +242,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         return rows > 0;
     }
 
-    /**
-     * 搜索笔记（模糊匹配标题或内容），只返回未删除的笔记
-     * @param keyword 搜索关键词
-     * @param userId  当前用户ID
-     * @return Cursor 包含 _id, title, content, create_time, update_time
-     */
+    // 原有的两参数搜索方法（关键词 + userId）
     public Cursor searchNotes(String keyword, int userId) {
         SQLiteDatabase db = getReadableDatabase();
         String[] columns = {
@@ -253,9 +250,9 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 COL_NOTE_TITLE,
                 COL_NOTE_CONTENT,
                 COL_NOTE_CREATE_TIME,
-                COL_NOTE_UPDATE_TIME
+                COL_NOTE_UPDATE_TIME,
+                COL_NOTE_CATEGORY
         };
-        // 条件：属于该用户 + 未删除 + (标题或内容包含关键词)
         String selection = COL_NOTE_USER_ID + "=? AND " + COL_NOTE_IS_DELETED + "=0 AND (" +
                 COL_NOTE_TITLE + " LIKE ? OR " + COL_NOTE_CONTENT + " LIKE ?)";
         String[] selectionArgs = new String[]{
@@ -263,21 +260,40 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 "%" + keyword + "%",
                 "%" + keyword + "%"
         };
-        // 按更新时间倒序
         return db.query(TABLE_NOTES, columns, selection, selectionArgs,
                 null, null, COL_NOTE_UPDATE_TIME + " DESC");
     }
 
-    /**
-     * 软删除：is_deleted=1，delete_time=now
-     */
+    // 新增的三参数搜索方法（userId + 关键词 + 分类）
+    public Cursor searchNotes(int userId, String keyword, String category) {
+        SQLiteDatabase db = getReadableDatabase();
+        String[] columns = {
+                COL_NOTE_ID + " as _id",
+                COL_NOTE_TITLE,
+                COL_NOTE_CONTENT,
+                COL_NOTE_CREATE_TIME,
+                COL_NOTE_UPDATE_TIME,
+                COL_NOTE_CATEGORY
+        };
+        String selection = COL_NOTE_USER_ID + "=? AND " + COL_NOTE_IS_DELETED + "=0 AND " +
+                COL_NOTE_CATEGORY + "=? AND (" +
+                COL_NOTE_TITLE + " LIKE ? OR " + COL_NOTE_CONTENT + " LIKE ?)";
+        String[] selectionArgs = new String[]{
+                String.valueOf(userId),
+                category,
+                "%" + keyword + "%",
+                "%" + keyword + "%"
+        };
+        return db.query(TABLE_NOTES, columns, selection, selectionArgs,
+                null, null, COL_NOTE_UPDATE_TIME + " DESC");
+    }
+
     public boolean softDeleteNote(int noteId) {
         SQLiteDatabase db = getWritableDatabase();
         long now = System.currentTimeMillis();
         ContentValues values = new ContentValues();
         values.put(COL_NOTE_IS_DELETED, 1);
         values.put(COL_NOTE_DELETE_TIME, now);
-
         int rows = db.update(TABLE_NOTES, values,
                 COL_NOTE_ID + "=?",
                 new String[]{String.valueOf(noteId)});
@@ -285,15 +301,11 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         return rows > 0;
     }
 
-    /**
-     * 回收站恢复：is_deleted=0，delete_time=NULL
-     */
     public boolean restoreNote(int noteId) {
         SQLiteDatabase db = getWritableDatabase();
         ContentValues values = new ContentValues();
         values.put(COL_NOTE_IS_DELETED, 0);
         values.putNull(COL_NOTE_DELETE_TIME);
-
         int rows = db.update(TABLE_NOTES, values,
                 COL_NOTE_ID + "=?",
                 new String[]{String.valueOf(noteId)});
@@ -301,9 +313,6 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         return rows > 0;
     }
 
-    /**
-     * 彻底删除：物理删除
-     */
     public boolean deleteNoteForever(int noteId) {
         SQLiteDatabase db = getWritableDatabase();
         int rows = db.delete(TABLE_NOTES, COL_NOTE_ID + "=?", new String[]{String.valueOf(noteId)});
