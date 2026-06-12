@@ -3,9 +3,11 @@ package com.example.myapplication;
 import android.content.Intent;
 import android.database.Cursor;
 import android.os.Bundle;
+import android.text.TextUtils;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.ListView;
+import android.widget.SearchView;
 import android.widget.SimpleCursorAdapter;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -93,6 +95,38 @@ public class MainActivity extends AppCompatActivity {
             startActivity(intent);
         });
 
+        // ===================== 新增：搜索功能 =====================
+        SearchView searchView = findViewById(R.id.search_view);
+        searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
+            @Override
+            public boolean onQueryTextSubmit(String query) {
+                performSearch(query);
+                return true;
+            }
+
+            @Override
+            public boolean onQueryTextChange(String newText) {
+                performSearch(newText);
+                return true;
+            }
+        });
+        // ========================================================
+
+        // 初始化适配器（先给一个空 cursor，loadNotes 中会填充）
+        adapter = new SimpleCursorAdapter(this, R.layout.item_note, null,
+                new String[]{DatabaseHelper.COL_NOTE_TITLE, DatabaseHelper.COL_NOTE_UPDATE_TIME},
+                new int[]{R.id.tv_title, R.id.tv_time}, 0);
+        adapter.setViewBinder((view, cursor, columnIndex) -> {
+            int updateTimeIndex = cursor.getColumnIndex(DatabaseHelper.COL_NOTE_UPDATE_TIME);
+            if (columnIndex == updateTimeIndex) {
+                long millis = cursor.getLong(columnIndex);
+                ((TextView) view).setText("最后修改：" + sdf.format(new Date(millis)));
+                return true;
+            }
+            return false;
+        });
+        lvNotes.setAdapter(adapter);
+
         loadNotes();
     }
 
@@ -131,26 +165,26 @@ public class MainActivity extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }
 
+    /**
+     * 加载所有笔记（未删除的）
+     */
     private void loadNotes() {
         Cursor cursor = dbHelper.getAllNotes(userId);
+        adapter.changeCursor(cursor);
+    }
 
-        // 显示标题 + 最后修改时间(update_time)
-        String[] from = {DatabaseHelper.COL_NOTE_TITLE, DatabaseHelper.COL_NOTE_UPDATE_TIME};
-        int[] to = {R.id.tv_title, R.id.tv_time};
-        adapter = new SimpleCursorAdapter(this, R.layout.item_note, cursor, from, to, 0);
-
-        // 把毫秒时间戳格式化显示
-        adapter.setViewBinder((view, c, columnIndex) -> {
-            int updateTimeIndex = c.getColumnIndex(DatabaseHelper.COL_NOTE_UPDATE_TIME);
-            if (columnIndex == updateTimeIndex) {
-                long millis = c.getLong(columnIndex);
-                ((TextView) view).setText("最后修改：" + sdf.format(new Date(millis)));
-                return true;
-            }
-            return false;
-        });
-
-        lvNotes.setAdapter(adapter);
+    /**
+     * 根据关键词搜索笔记
+     */
+    private void performSearch(String keyword) {
+        if (TextUtils.isEmpty(keyword)) {
+            // 关键词为空，显示所有笔记
+            loadNotes();
+        } else {
+            // 搜索匹配的笔记
+            Cursor cursor = dbHelper.searchNotes(keyword, userId);
+            adapter.changeCursor(cursor);
+        }
     }
 
     @Override

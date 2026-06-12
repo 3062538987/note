@@ -205,6 +205,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 null, null, null);
     }
 
+
     // 添加记事：自动写 create_time 和 update_time，默认未删除
     public long addNote(int userId, String title, String content) {
         SQLiteDatabase db = getWritableDatabase();
@@ -237,6 +238,34 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 new String[]{String.valueOf(noteId)});
         db.close();
         return rows > 0;
+    }
+
+    /**
+     * 搜索笔记（模糊匹配标题或内容），只返回未删除的笔记
+     * @param keyword 搜索关键词
+     * @param userId  当前用户ID
+     * @return Cursor 包含 _id, title, content, create_time, update_time
+     */
+    public Cursor searchNotes(String keyword, int userId) {
+        SQLiteDatabase db = getReadableDatabase();
+        String[] columns = {
+                COL_NOTE_ID + " as _id",
+                COL_NOTE_TITLE,
+                COL_NOTE_CONTENT,
+                COL_NOTE_CREATE_TIME,
+                COL_NOTE_UPDATE_TIME
+        };
+        // 条件：属于该用户 + 未删除 + (标题或内容包含关键词)
+        String selection = COL_NOTE_USER_ID + "=? AND " + COL_NOTE_IS_DELETED + "=0 AND (" +
+                COL_NOTE_TITLE + " LIKE ? OR " + COL_NOTE_CONTENT + " LIKE ?)";
+        String[] selectionArgs = new String[]{
+                String.valueOf(userId),
+                "%" + keyword + "%",
+                "%" + keyword + "%"
+        };
+        // 按更新时间倒序
+        return db.query(TABLE_NOTES, columns, selection, selectionArgs,
+                null, null, COL_NOTE_UPDATE_TIME + " DESC");
     }
 
     /**
