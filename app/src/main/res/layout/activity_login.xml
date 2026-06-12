@@ -33,7 +33,17 @@
         android:inputType="textPassword"
         android:background="@drawable/edittext_bg"
         android:padding="12dp"
-        android:layout_marginBottom="24dp"/>
+        android:layout_marginBottom="12dp"/>
+
+    <!-- 添加记住密码复选框 -->
+    <CheckBox
+        android:id="@+id/chk_remember_password"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="记住密码"
+        android:textColor="#2E7D32"
+        android:layout_marginBottom="16dp"
+        android:layout_gravity="start"/>
 
     <Button
         android:id="@+id/btn_login"
